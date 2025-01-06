@@ -18,6 +18,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
     castParameter(apvts, ParameterID::wetLevel, wetLevelParam);
     castParameter(apvts, ParameterID::feedbackLevel, feedbackLevelParam);
     castParameter(apvts, ParameterID::syncToggle, syncToggleParam);
+    castParameter(apvts, ParameterID::syncRate, syncRateParam);
     apvts.state.addListener(this);
 }
 
@@ -144,6 +145,8 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
+    //Lookout for changes in host bpm.
+    setupSync();
 
     //Only want to call update when a parameter is actually changed.
     bool expected = true;
@@ -163,6 +166,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout AudioPluginAudioProcessor::c
                 ParameterID::syncToggle,
                 "Tempo Sync",
                 false
+                ));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+                    ParameterID::syncRate,
+                    "Tempo Sync Rate",
+                    juce::StringArray {"1/4", "1/8", "1/16"},
+                    0
                 ));
     layout.add(std::make_unique<juce::AudioParameterFloat>(
                 ParameterID::lDelayTime,
@@ -201,25 +210,13 @@ void AudioPluginAudioProcessor::update() {
     playHead = this->getPlayHead();
     float lDelayTime; 
     float rDelayTime; 
-    if (playHead != nullptr && syncToggleParam->get()) {
-        auto optPosition = playHead->getPosition();
-        if (optPosition.hasValue()) {
-            juce::AudioPlayHead::PositionInfo position = *optPosition;
-            auto optBpm = position.getBpm();
-            if (optBpm.hasValue()) {
-                auto bpm = *optBpm;
-                float delayTime = (bpmDividend / (float)bpm * 4.f);
-                lDelayTime = delayTime * 0.001f;
-                rDelayTime = delayTime * 0.001f;
-            }
-        }
-    }
-    else {
+    if (!syncToggleParam->get()) {
         lDelayTime = lDelayTimeParam->get() * 0.001f;
         rDelayTime = rDelayTimeParam->get() * 0.001f;
+        delayModule.setDelayTime(0, lDelayTime);
+        delayModule.setDelayTime(1, rDelayTime);
     }
-    delayModule.setDelayTime(0, lDelayTime);
-    delayModule.setDelayTime(1, rDelayTime);
+    //delayModule.setSyncRate(syncRateParam->getIndex());
     delayModule.setWetLevel((float)wetLevelParam->get() * 0.01f);    
     delayModule.setFeedbackLevel((float)feedbackLevelParam->get() * 0.01);    
 }

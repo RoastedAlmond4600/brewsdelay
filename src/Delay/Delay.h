@@ -4,7 +4,6 @@
 #include <math.h>
 #include <vector>
 #include "DelayLine.h"
-#include <JuceHeader.h>
 
 template <typename Type, size_t maxNumChannels=2>
 class Delay {
