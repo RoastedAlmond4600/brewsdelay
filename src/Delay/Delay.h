@@ -11,10 +11,6 @@ class Delay {
     public:
         Delay() {
             setMaxDelayTime(2.f); 
-//            setDelayTime(0, 0.7f);
-//            setDelayTime(1, 0.5f);
-//            setWetLevel(0.8f);
- //           setFeedbackLevel(0.5f);
             std::printf("Delay Lines: %ld\n", delayLines.size());
             std::printf("Delay Time Samples: %ld\n", delayTimesSample.size());
             std::printf("Delay Time: %ld\n", delayTimes.size());

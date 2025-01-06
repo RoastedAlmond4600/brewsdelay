@@ -10,6 +10,7 @@ namespace ParameterID {
     PARAMETER_ID(rDelayTime);
     PARAMETER_ID(wetLevel);
     PARAMETER_ID(feedbackLevel);
+    PARAMETER_ID(syncToggle);
 }
 //==============================================================================
 class AudioPluginAudioProcessor final : public juce::AudioProcessor,
@@ -57,17 +58,24 @@ private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessor)
     Delay<float> delayModule;
+
+    //Parameter Pointers
     juce::AudioParameterFloat* lDelayTimeParam;
     juce::AudioParameterFloat* rDelayTimeParam;
     juce::AudioParameterInt* wetLevelParam;
     juce::AudioParameterInt* feedbackLevelParam;
+    juce::AudioParameterBool* syncToggleParam;
+    
+    //Parameter Tree Setup
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     std::atomic<bool> parameterChanged {true};
-    void valueTreePropertyChanged(juce::ValueTree&, const juce::Identifier&) {
-        //std::printf("Changing some values");
-        parameterChanged.store(true);
-        
-    }
+    void valueTreePropertyChanged(juce::ValueTree&, const juce::Identifier&) { parameterChanged.store(true); }
     void update();
 
+    //Tempo-Synced Variables.
+    juce::AudioPlayHead* playHead;
+    static constexpr float bpmDividend = 60000.f;
+    inline void setupSync(juce::AudioPlayHead* _playHead) {
+         
+    }
 };

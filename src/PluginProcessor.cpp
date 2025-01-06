@@ -17,6 +17,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
     castParameter(apvts, ParameterID::rDelayTime, rDelayTimeParam);
     castParameter(apvts, ParameterID::wetLevel, wetLevelParam);
     castParameter(apvts, ParameterID::feedbackLevel, feedbackLevelParam);
+    castParameter(apvts, ParameterID::syncToggle, syncToggleParam);
     apvts.state.addListener(this);
 }
 
@@ -155,48 +156,72 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout AudioPluginAudioProcessor::createParameterLayout() {
+    //Overall layout object.
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
-    // Initialises and creates a pointer to an AudioParameterFloat type.
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-                   ParameterID::lDelayTime,
-                   "Left Delay Time",
-                  juce::NormalisableRange(0.01f,5.f,0.1f),
-                  0.5f,
-                 juce::AudioParameterFloatAttributes().withLabel("ms") 
+
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+                ParameterID::syncToggle,
+                "Tempo Sync",
+                false
                 ));
     layout.add(std::make_unique<juce::AudioParameterFloat>(
-                   ParameterID::rDelayTime,
-                   "RIght Delay Time",
-                  juce::NormalisableRange(0.01f,5.f,0.1f),
-                  0.5f,
-                 juce::AudioParameterFloatAttributes().withLabel("ms") 
+                ParameterID::lDelayTime,
+                "Left Delay Time",
+                juce::NormalisableRange(1.f,500.f,0.1f),
+                5.f,
+                juce::AudioParameterFloatAttributes().withLabel("ms") 
+                ));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+                ParameterID::rDelayTime,
+                "Right Delay Time",
+                juce::NormalisableRange(1.f,500.f,0.1f),
+                5.f,
+                juce::AudioParameterFloatAttributes().withLabel("ms") 
                 ));
     layout.add(std::make_unique<juce::AudioParameterInt>(
-                    ParameterID::feedbackLevel,
-                    "Feedback Level",
-                    0,
-                    100,
-                    50,
-                    juce::AudioParameterIntAttributes().withLabel("%")
+                ParameterID::feedbackLevel,
+                "Feedback Level",
+                0,
+                100,
+                50,
+                juce::AudioParameterIntAttributes().withLabel("%")
                 ));
     layout.add(std::make_unique<juce::AudioParameterInt>(
-                    ParameterID::wetLevel,
-                    "Wet",
-                    0,
-                    100,
-                    80,
-                    juce::AudioParameterIntAttributes().withLabel("%")
+                ParameterID::wetLevel,
+                "Wet",
+                0,
+                100,
+                80,
+                juce::AudioParameterIntAttributes().withLabel("%")
                 ));
     return layout;
 }
 
 void AudioPluginAudioProcessor::update() {
-//    delayModule.setMaxDelayTime(maxDelayTimeParam->get());    
-    delayModule.setDelayTime(0, lDelayTimeParam->get());
-    delayModule.setDelayTime(1, rDelayTimeParam->get());
+    playHead = this->getPlayHead();
+    float lDelayTime; 
+    float rDelayTime; 
+    if (playHead != nullptr && syncToggleParam->get()) {
+        auto optPosition = playHead->getPosition();
+        if (optPosition.hasValue()) {
+            juce::AudioPlayHead::PositionInfo position = *optPosition;
+            auto optBpm = position.getBpm();
+            if (optBpm.hasValue()) {
+                auto bpm = *optBpm;
+                float delayTime = (bpmDividend / (float)bpm * 4.f);
+                lDelayTime = delayTime * 0.001f;
+                rDelayTime = delayTime * 0.001f;
+            }
+        }
+    }
+    else {
+        lDelayTime = lDelayTimeParam->get() * 0.001f;
+        rDelayTime = rDelayTimeParam->get() * 0.001f;
+    }
+    delayModule.setDelayTime(0, lDelayTime);
+    delayModule.setDelayTime(1, rDelayTime);
     delayModule.setWetLevel((float)wetLevelParam->get() * 0.01f);    
     delayModule.setFeedbackLevel((float)feedbackLevelParam->get() * 0.01);    
-    std::printf("Changing some values\n");
 }
 
 //==============================================================================

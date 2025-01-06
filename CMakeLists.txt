@@ -29,7 +29,7 @@ target_sources(BrewsDelay
         src/Delay/Delay.h
         src/Delay/DelayLine.h
         src/Utils/Utils.h
-        src/OpenGLComponent.cpp
+        src/UI/OpenGLComponent.cpp
         )
 
 target_compile_definitions(BrewsDelay
