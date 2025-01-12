@@ -17,8 +17,11 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
     castParameter(apvts, ParameterID::rDelayTime, rDelayTimeParam);
     castParameter(apvts, ParameterID::wetLevel, wetLevelParam);
     castParameter(apvts, ParameterID::feedbackLevel, feedbackLevelParam);
+    castParameter(apvts, ParameterID::joinToggle, joinToggleParam);
+    castParameter(apvts, ParameterID::delayTime, delayTimeParam);
     castParameter(apvts, ParameterID::syncToggle, syncToggleParam);
-    castParameter(apvts, ParameterID::syncRate, syncRateParam);
+    castParameter(apvts, ParameterID::lSyncRate, lSyncRateParam);
+    castParameter(apvts, ParameterID::rSyncRate, rSyncRateParam);
     apvts.state.addListener(this);
 }
 
@@ -167,9 +170,27 @@ juce::AudioProcessorValueTreeState::ParameterLayout AudioPluginAudioProcessor::c
                 "Tempo Sync",
                 false
                 ));
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+                ParameterID::joinToggle,
+                "]-[",
+                true 
+                ));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+                    ParameterID::delayTime,
+                    "Delay Time",
+                    juce::NormalisableRange(1.f,500.f,0.1f),
+                    300.f,
+                    juce::AudioParameterFloatAttributes().withLabel("ms") 
+                ));
     layout.add(std::make_unique<juce::AudioParameterChoice>(
-                    ParameterID::syncRate,
-                    "Tempo Sync Rate",
+                    ParameterID::lSyncRate,
+                    "Left Sync Rate",
+                    juce::StringArray {"1/4", "1/8", "1/16"},
+                    0
+                ));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+                    ParameterID::rSyncRate,
+                    "Right Sync Rate",
                     juce::StringArray {"1/4", "1/8", "1/16"},
                     0
                 ));
@@ -177,14 +198,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout AudioPluginAudioProcessor::c
                 ParameterID::lDelayTime,
                 "Left Delay Time",
                 juce::NormalisableRange(1.f,500.f,0.1f),
-                5.f,
+                100.f,
                 juce::AudioParameterFloatAttributes().withLabel("ms") 
                 ));
     layout.add(std::make_unique<juce::AudioParameterFloat>(
                 ParameterID::rDelayTime,
                 "Right Delay Time",
                 juce::NormalisableRange(1.f,500.f,0.1f),
-                5.f,
+                200.f,
                 juce::AudioParameterFloatAttributes().withLabel("ms") 
                 ));
     layout.add(std::make_unique<juce::AudioParameterInt>(
@@ -211,12 +232,18 @@ void AudioPluginAudioProcessor::update() {
     float lDelayTime; 
     float rDelayTime; 
     if (!syncToggleParam->get()) {
-        lDelayTime = lDelayTimeParam->get() * 0.001f;
-        rDelayTime = rDelayTimeParam->get() * 0.001f;
-        delayModule.setDelayTime(0, lDelayTime);
-        delayModule.setDelayTime(1, rDelayTime);
+        if (joinToggleParam->get()) {
+            float delayTime = delayTimeParam->get() * 0.001f;
+            delayModule.setDelayTime(0, delayTime);
+            delayModule.setDelayTime(1, delayTime);
+        }
+        else {
+            lDelayTime = lDelayTimeParam->get() * 0.001f;
+            rDelayTime = rDelayTimeParam->get() * 0.001f;
+            delayModule.setDelayTime(0, lDelayTime);
+            delayModule.setDelayTime(1, rDelayTime);
+        }
     }
-    //delayModule.setSyncRate(syncRateParam->getIndex());
     delayModule.setWetLevel((float)wetLevelParam->get() * 0.01f);    
     delayModule.setFeedbackLevel((float)feedbackLevelParam->get() * 0.01);    
 }

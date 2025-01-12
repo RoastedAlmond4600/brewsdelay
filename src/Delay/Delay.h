@@ -16,6 +16,9 @@ class Delay {
         }
         ~Delay() {}
         void reset() {
+            for (auto& filter : filters) {
+                filter.reset();
+            }
             for (auto& delayLine : delayLines) {
                 delayLine.clear();
             }
@@ -25,6 +28,12 @@ class Delay {
             sampleRate = (Type)spec.sampleRate;
             updateDelayLineSize();
             updateDelayTime();
+            filterCoefs = juce::dsp::IIR::Coefficients<Type>::makeFirstOrderHighPass (sampleRate, Type(1e3));
+            for (auto& filter : filters) {
+                filter.prepare(spec);
+                filter.coefficients = filterCoefs; 
+            }
+
             std::printf("Delay Lines: %ld\n", delayLines.size());
             std::printf("Delay Time Samples: %ld\n", delayTimesSample.size());
             std::printf("Delay Time: %ld\n", delayTimes.size());
@@ -45,10 +54,11 @@ class Delay {
                 auto* output = outputBlock.getChannelPointer(ch);
                 auto& dline = delayLines[ch];
                 auto delayTime = delayTimesSample[ch];
+                auto& filter = filters[ch];
                 //run through the buffer
                 for (size_t sample = 0; sample < numSamples; ++sample) {
                    //process magic. 
-                   auto delayedSample = dline.get(delayTime);
+                   auto delayedSample = filter.processSample(dline.get(delayTime));
                    auto inputSample = input[sample];
                    auto dlineInputSample = std::atan(inputSample + feedbackLevel * delayedSample);
                    dline.push(dlineInputSample);
@@ -101,7 +111,11 @@ class Delay {
         //Containers
         std::array<DelayLine<Type>, maxNumChannels> delayLines;
         std::array<size_t, maxNumChannels> delayTimesSample;
+        //For each channel, what are the corresponding delays.
         std::array<Type, maxNumChannels> delayTimes;
+        //Effects
+        std::array<juce::dsp::IIR::Filter<Type>, maxNumChannels> filters;
+        typename juce::dsp::IIR::Coefficients<Type>::Ptr filterCoefs;
 };
 
 template class Delay<float>;

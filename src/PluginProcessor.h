@@ -10,8 +10,11 @@ namespace ParameterID {
     PARAMETER_ID(rDelayTime);
     PARAMETER_ID(wetLevel);
     PARAMETER_ID(feedbackLevel);
+    PARAMETER_ID(joinToggle);
+    PARAMETER_ID(delayTime);
     PARAMETER_ID(syncToggle);
-    PARAMETER_ID(syncRate);
+    PARAMETER_ID(lSyncRate);
+    PARAMETER_ID(rSyncRate);
 }
 //==============================================================================
 class AudioPluginAudioProcessor final : public juce::AudioProcessor,
@@ -65,8 +68,11 @@ private:
     juce::AudioParameterFloat* rDelayTimeParam;
     juce::AudioParameterInt* wetLevelParam;
     juce::AudioParameterInt* feedbackLevelParam;
+    juce::AudioParameterBool* joinToggleParam;
+    juce::AudioParameterFloat* delayTimeParam;
     juce::AudioParameterBool* syncToggleParam;
-    juce::AudioParameterChoice* syncRateParam;
+    juce::AudioParameterChoice* lSyncRateParam;
+    juce::AudioParameterChoice* rSyncRateParam;
     
     //Parameter Tree Setup
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -77,6 +83,7 @@ private:
     //Tempo-Synced Variables.
     juce::AudioPlayHead* playHead;
     static constexpr float bpmDividend = 60000.f;
+    const float rateMultipliers[3] = {1.f, 0.5f, 0.25f};
     const inline void setupSync() {
         playHead = this->getPlayHead();
         if (playHead != nullptr && syncToggleParam->get()) {
@@ -86,17 +93,15 @@ private:
                 auto optBpm = position.getBpm();
                 if (optBpm.hasValue()) {
                     auto bpm = *optBpm;
-                    float delayTime = (bpmDividend / (float)bpm);
-                    float rateMult = 1.f;
-                    switch (syncRateParam->getIndex()) {
-                        case 0: break; 
-                        case 1: rateMult = 0.5f; break; 
-                        case 2: rateMult = 0.25f; break; 
-                        default: break;
-                    }
-                    delayTime *= 0.001f * rateMult;
-                    delayModule.setDelayTime(0, delayTime);
-                    delayModule.setDelayTime(1, delayTime);
+                    float delayTimeMs = (bpmDividend / (float)bpm);
+                    //Set left channel
+                    float lRateMult = rateMultipliers[lSyncRateParam->getIndex()];
+                    float lDelayTime = delayTimeMs * lRateMult * 0.001f;
+                    delayModule.setDelayTime(0, lDelayTime);
+                    //Set right channel
+                    float rRateMult = rateMultipliers[rSyncRateParam->getIndex()];
+                    float rDelayTime = delayTimeMs * rRateMult * 0.001f;
+                    delayModule.setDelayTime(1, rDelayTime);
                 }
             }
         }
